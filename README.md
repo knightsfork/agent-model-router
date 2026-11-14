@@ -56,7 +56,7 @@ No terminal needed:
 3. In Claude, open your skill settings and upload the zip as a custom skill.
 4. Make sure the skill is turned on, then start a new chat. It applies on its own; you never need to call it.
 
-Release zips are built from the exact tag and never silently replaced.
+Release zips are built from the exact tag and never silently replaced. The zip is reproducible: the same tree always produces a byte-identical `model-router.zip` (entries are stored uncompressed, so the bytes don't depend on the zlib version), so a failed release run can be retried safely and an existing asset is only skipped when it matches the rebuilt file.
 
 Routing needs a Claude session that can run subagents, which depends on your plan and app features. Without subagents the skill still works, doing everything in the main chat.
 
@@ -103,7 +103,7 @@ The installer never overwrites an existing file that differs from this version. 
 ./install.sh claude-app
 ```
 
-This builds `dist/model-router.zip` (the same file as the release download) and writes nothing else. The alias `claude-desktop` also works, and `all` doesn't include it. To do it by hand, zip the `skills/model-router` folder so that `model-router/SKILL.md` is inside the zip.
+This builds `dist/model-router.zip` (the same bytes as the release download, because the build is reproducible) and writes nothing else. The alias `claude-desktop` also works, and `all` doesn't include it. To do it by hand, zip the `skills/model-router` folder so that `model-router/SKILL.md` is inside the zip.
 
 ### Manual install
 
@@ -166,7 +166,7 @@ delegation: auto
 - `approval_required_tiers`: tiers that need your approval before they run.
 - `max_parallel_agents`: how many delegated agents run at once.
 - `recommended_main_tier`: the tier you should run the main chat model on, since the orchestrator's own judgment sets the quality of every delegation.
-- `checkpoints`: `outside_repo` (default) writes one file per session to `~/.model-router/checkpoints/<project-id>/_state-<stamp>-<slug>.md`, `in_repo` writes `.model-router/_state-<stamp>-<slug>.md` in the working folder, `off` writes none. `<project-id>` is the absolute path of the working folder with the leading `/` removed and every `/`, `\` and `:` replaced by `-` (for example `/Users/hatem/work/my-app` becomes `Users-hatem-work-my-app`), so it is unique per checkout. `<stamp>-<slug>` is `<YYYYmmdd-HHMM>-<short-task-slug>`, chosen at a session's first checkpoint and reused for that session; after compaction or in a new chat the skill reads the most recent `_state-*.md` and starts a new file for new work.
+- `checkpoints`: `outside_repo` (default) writes one file per session to `~/.model-router/checkpoints/<project-id>/_state-<session>.md`, `in_repo` writes `.model-router/_state-<session>.md` in the working folder, `off` writes none. `<project-id>` is the absolute path of the working folder, percent-encoded: every byte except the ASCII letters, digits, `.`, `_` and `-` becomes `%` plus two uppercase hex digits (`/` becomes `%2F`, `%` becomes `%25`, a space becomes `%20`). For example `/work/team-a/app` becomes `%2Fwork%2Fteam-a%2Fapp` and `/work/team/a-app` becomes `%2Fwork%2Fteam%2Fa-app`, so different folders never share an ID. `<session>` is `<YYYYmmdd-HHMMSS>-<6 random lowercase hex chars>-<slug>`; the skill checks that the file name is unused before creating it, states the full path once in the chat, and resumes from that exact path after compaction. In a new chat it lists the project's checkpoints and asks you which one to resume if more than one could be the same task, otherwise it starts a new file.
 - `delegation`: `auto` (default) delegates substantial parts as section 1 describes. `on_request` still loads the skill, but delegates only when the user asks for delegation or parallel work. A request to delegate is not approval for a gated tier.
 - `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<project-id>/routing-log.md` (or `.model-router/routing-log.md` with `checkpoints: in_repo`), so you can tune the tier table.
 
@@ -180,7 +180,7 @@ Plugin installs on Claude Code are replaced when the plugin updates, so edits to
 - The frontier tier is gated. It never runs without your approval, and untried parts drop to the tier below; parts that already failed are reported as blocked.
 - Copilot: a subagent can't use a model that costs more than its parent. No frontier preset is shipped; the frontier tier there means running the part in the main chat on a top model, after approval.
 - Gemini CLI, Cursor and Copilot set the model per agent definition, so routing means calling the right preset.
-- The orchestrator can't run `/compact` itself. On long jobs it writes progress to a per-session `_state-*.md` file so work survives compaction.
+- The orchestrator can't run `/compact` itself. On long jobs it writes progress to a per-session `_state-<session>.md` file so work survives compaction.
 - Savings aren't guaranteed. Delegation has overhead (briefs, extra calls, review), so short or tightly coupled tasks can cost more when delegated, and the skill keeps those inline. If you want delegation only for large parallel tasks, set `delegation: on_request`.
 - Chat apps without subagent tools (for example the ChatGPT and Gemini apps) can't route; the skill works inline there and skips the routing line.
 - Claude Code is tested with the plugin validator, and the Claude desktop app has been used in live sessions with real Haiku, Sonnet and Opus subagents. Codex: ran in a live session. The author ran the plugin in Codex, which spawned a fast-tier subagent. Not yet fully tested end to end. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
@@ -203,16 +203,19 @@ adapters/
   copilot/agents/      router-*.agent.md
 install.sh             installer (claude-app builds dist/model-router.zip)
 tests/test_install.sh  installer tests
+tests/test_publish.sh  release publisher tests (fake gh)
 scripts/validate.py    skill and agent file validator
+scripts/publish-release.sh  idempotent release asset publisher used by the workflow
 ```
 
 ## Contributing
 
-Before opening a pull request, run both checks:
+Before opening a pull request, run these checks:
 
 ```
 python3 scripts/validate.py
 bash tests/test_install.sh
+bash tests/test_publish.sh
 ```
 
 `validate.py` needs Python 3.11 or later. It uses `pyyaml` if installed and otherwise a built-in parser (`MR_NO_YAML=1` forces it). If you test a platform end to end, please open an issue with the result.

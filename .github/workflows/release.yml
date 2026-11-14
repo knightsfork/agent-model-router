@@ -6,10 +6,10 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag to build and publish (for example v1.0.2)
+        description: Release tag to build and publish (for example v1.0.3)
         required: true
       replace_asset:
-        description: Delete and re-upload existing assets, built from the tag
+        description: Replace existing assets that differ, built from the tag (safe replace, never leaves the release without the asset)
         type: boolean
         default: false
 
@@ -26,10 +26,33 @@ jobs:
     env:
       TAG: ${{ inputs.tag || github.ref_name }}
     steps:
+      - name: Reject tags older than v1.0.3
+        run: |
+          # This step runs before checkout on purpose: older tags don't contain
+          # the scripts the later steps need. Versions are compared numerically.
+          re='^v([0-9]+)\.([0-9]+)\.([0-9]+)$'
+          if ! [[ $TAG =~ $re ]]; then
+            echo "Tag '$TAG' must look like v1.2.3." >&2
+            exit 1
+          fi
+          cur=("$((10#${BASH_REMATCH[1]}))" "$((10#${BASH_REMATCH[2]}))" "$((10#${BASH_REMATCH[3]}))")
+          min=(1 0 3)
+          older=0
+          for i in 0 1 2; do
+            if [ "${cur[$i]}" -lt "${min[$i]}" ]; then older=1; break; fi
+            if [ "${cur[$i]}" -gt "${min[$i]}" ]; then break; fi
+          done
+          if [ "$older" -eq 1 ]; then
+            echo "Releases before v1.0.3 were published by an earlier workflow; this workflow supports v1.0.3 and later." >&2
+            exit 1
+          fi
+          echo "Tag $TAG is supported."
+
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Check HEAD is the tag's commit
         run: |
@@ -42,9 +65,10 @@ jobs:
 
       - name: Validate
         run: |
-          python3 -m pip install --quiet pyyaml
+          python3 -m pip install --quiet pyyaml==6.0.2
           python3 scripts/validate.py
           bash tests/test_install.sh
+          bash tests/test_publish.sh
 
       - name: Build the Claude app zip and checksum
         run: |
@@ -56,22 +80,11 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           REPLACE_ASSET: ${{ inputs.replace_asset || 'false' }}
         run: |
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" --verify-tag \
-              --title "$TAG" \
-              --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). Verify it with model-router.zip.sha256. For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
+          if [ "$REPLACE_ASSET" = "true" ]; then
+            bash scripts/publish-release.sh "$TAG" --replace
+          else
+            bash scripts/publish-release.sh "$TAG"
           fi
-          existing="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
-          for name in model-router.zip model-router.zip.sha256; do
-            if printf '%s\n' "$existing" | grep -Fxq "$name"; then
-              if [ "$REPLACE_ASSET" = "true" ]; then
-                gh release delete-asset "$TAG" "$name" --yes
-              else
-                echo "$name already exists on release $TAG. Not overwriting. Re-run manually with replace_asset=true to replace it." >&2
-                exit 1
-              fi
-            fi
-          done
-          gh release upload "$TAG" dist/model-router.zip dist/model-router.zip.sha256

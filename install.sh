@@ -79,19 +79,35 @@ build_zip() {
     mkdir "$tmp/model-router"
     cp -R "$SKILL_SRC/." "$tmp/model-router/"
     rm -f "$out"
-    if command -v zip >/dev/null 2>&1; then
-      (cd "$tmp" && zip -q -r "$out" model-router)
-    else
-      python3 - "$tmp" "$out" <<'PY'
+    # Reproducible build: sorted entries, fixed timestamp and permissions, and
+    # stored (uncompressed) entries so the bytes don't depend on the zlib version.
+    python3 - "$tmp" "$out" <<'PY'
 import os, sys, zipfile
+
 src, out = sys.argv[1], sys.argv[2]
-with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-    for d, _, files in sorted(os.walk(src)):
-        for f in sorted(files):
-            p = os.path.join(d, f)
-            z.write(p, os.path.relpath(p, src))
+DATE = (1980, 1, 1, 0, 0, 0)
+entries = []
+for d, dirs, files in os.walk(src):
+    for name in dirs:
+        full = os.path.join(d, name)
+        entries.append((os.path.relpath(full, src).replace(os.sep, "/") + "/", None))
+    for name in files:
+        full = os.path.join(d, name)
+        entries.append((os.path.relpath(full, src).replace(os.sep, "/"), full))
+entries.sort(key=lambda e: e[0])
+with zipfile.ZipFile(out, "w", zipfile.ZIP_STORED) as z:
+    for arc, full in entries:
+        info = zipfile.ZipInfo(arc, DATE)
+        info.create_system = 3
+        info.compress_type = zipfile.ZIP_STORED
+        if full is None:
+            info.external_attr = (0o40755 << 16) | 0x10
+            z.writestr(info, b"")
+        else:
+            info.external_attr = 0o100644 << 16
+            with open(full, "rb") as fh:
+                z.writestr(info, fh.read())
 PY
-    fi
     cleanup_build
     BUILD_TMP=""
     echo "built $out"

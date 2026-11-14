@@ -1,6 +1,6 @@
 {
   "name": "model-router",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Routes subagent work to the cheapest model tier that will do each part well, with an approval gate on the top tier. Works across coding agents; this plugin installs the Claude Code adapter (Haiku, Sonnet, Opus, Fable). By Hatem Mohamed.",
   "author": {
     "name": "Hatem Mohamed"

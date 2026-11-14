@@ -125,6 +125,24 @@ assert any(x.startswith('model-router/references/platforms/claude-app.md') for x
 assert all(x.startswith('model-router/') for x in n)" "$ROOT/dist/model-router.zip"
 check "claude-app writes nothing to HOME" bash -c "[ -z \"\$(find '$base' -mindepth 1 -print -quit)\" ]"
 rm -rf "$ROOT/dist"
+HOME="$base" "$INSTALL" claude-app >/dev/null 2>&1
+sum1="$(python3 -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$ROOT/dist/model-router.zip")"
+rm -rf "$ROOT/dist"
+sleep 1
+HOME="$base" "$INSTALL" claude-app >/dev/null 2>&1
+sum2="$(python3 -c "import hashlib,sys;print(hashlib.sha256(open(sys.argv[1],'rb').read()).hexdigest())" "$ROOT/dist/model-router.zip")"
+check "claude-app zip is byte-identical across two builds" test -n "$sum1" -a "$sum1" = "$sum2"
+check "zip entries sorted, fixed timestamp and permissions" python3 -c "
+import sys, zipfile
+z = zipfile.ZipFile(sys.argv[1])
+names = [i.filename for i in z.infolist()]
+assert names == sorted(names), 'not sorted'
+assert 'model-router/' in names and 'model-router/references/platforms/' in names
+for i in z.infolist():
+    assert i.date_time == (1980, 1, 1, 0, 0, 0), i.filename
+    mode = i.external_attr >> 16
+    assert mode == (0o40755 if i.filename.endswith('/') else 0o100644), (i.filename, oct(mode))" "$ROOT/dist/model-router.zip"
+rm -rf "$ROOT/dist"
 HOME="$base" "$INSTALL" claude-desktop >/dev/null 2>&1
 check "alias claude-desktop builds zip" test -f "$ROOT/dist/model-router.zip"
 rm -rf "$ROOT/dist"
