@@ -36,6 +36,7 @@ The adapter ships `router-scout` (fast), `router-builder` (standard), `router-ar
 ## 4. Caveats
 
 - Fork subagents ignore `model`. Never route through them.
+- Read-only: the reviewer has the file-edit tools removed but keeps `Bash` so it can run checks, so it is not a hard read-only boundary; the shell can still change files. The deep-thinker has no shell or edit tools, so it can't write. For sensitive reviews, run the session itself in Claude Code's read-only (plan) mode.
 - The plugin cache is replaced when the plugin updates. Edit the files in the repo or in `~/.claude/agents/`, not in the cache, or your changes disappear on the next update.
 - Ask for approval with the AskUserQuestion tool when it is available. Otherwise ask in plain chat and wait.
 - Subagents return only a final message. Have them write large outputs to the files the brief names.

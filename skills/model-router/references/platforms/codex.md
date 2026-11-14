@@ -4,13 +4,16 @@ Read this once per session when you run in Codex.
 
 ## 1. How to spawn a subagent with a chosen model
 
-Codex spawns subagents on request in natural language. Name the model and the effort in the request, for example: "Spawn a subagent on gpt-6-luna with low reasoning effort to extract the tables from these files." Also name the custom agent when you want a preset.
+Codex spawns subagents on request in natural language. With the presets installed, route by calling the preset for the tier by name, for example: "Use the router-scout agent to extract the tables from these files." The preset's own `model` and `model_reasoning_effort` win over anything named at spawn time, so the preset is what picks the model.
 
-Model resolution order:
+To use a model that has no preset, spawn a plain (non-preset) subagent and name the model and the effort in the request, for example: "Spawn a subagent on gpt-6-luna with low reasoning effort to extract the tables from these files."
 
-1. The model named when you spawn the subagent.
-2. `[agents] default_subagent_model` in `config.toml`.
-3. The parent's model.
+Model precedence:
+
+1. If a custom agent file sets `model` or `model_reasoning_effort`, the file wins over a model requested at spawn time.
+2. Spawn-time values only override `[agents] default_subagent_model` / `default_subagent_reasoning_effort` and the parent's model, and only for agents without those keys.
+
+So with presets installed, route by calling the preset for the tier. A gated tier can't be avoided by naming a lower model on a preset call: if `strong` is gated, ask the user first before calling `router-architect` or `router-reviewer`.
 
 ## 2. Tier-to-model table
 
@@ -28,14 +31,14 @@ These defaults come from the vendor's docs as of November 2026. Check the model 
 The adapter ships `router-scout`, `router-builder`, `router-architect`, `router-reviewer` and `router-deep-thinker` as TOML files. Strong-tier work goes to `router-architect` and strong-tier review to `router-reviewer`.
 
 - Install into `~/.codex/agents/` (user) or `.codex/agents/` (project). Skills go in `~/.agents/skills/` or `.agents/skills/`.
-- Each file sets `name`, `description`, `model`, `model_reasoning_effort` and `developer_instructions`. There is no tools field, so the instructions enforce the limits.
+- Each file sets `name`, `description`, `model`, `model_reasoning_effort` and `developer_instructions`. There is no tools field, so the instructions set the limits. The file can also set `features.*` keys; the read-only presets switch off `features.apps`, `features.plugins` and `features.request_permissions_tool`.
 - Call one by name: "Use the router-builder agent to implement this spec."
 - The gate applies to presets too: do not call `router-deep-thinker` before the user approves the frontier tier for that part.
 
 ## 4. Caveats
 
-- Because of the resolution order, a model named at spawn time beats `default_subagent_model`, which beats the parent. Name the model on every spawn so the routing doesn't depend on config.
-- Whether a custom agent's own `model` overrides a model named at spawn time is not confirmed. State both the agent and the model, and check which one ran.
+- A model named at spawn time does not override a preset's own `model`. Route by calling the preset for the tier. For a plain subagent, name the model on every spawn so the routing doesn't depend on config.
+- Read-only: instruction only. Subagents inherit the parent's sandbox and approvals, and a custom agent file can't override `sandbox_mode` or `approval_policy`. The read-only presets switch off `features.apps`, `features.plugins` and `features.request_permissions_tool`. Use a read-only Codex session for sensitive reviews.
 - Ask for approval in plain chat unless Codex offers a structured question tool.
 
 ## 5. How to change the models
@@ -44,9 +47,9 @@ Edit `model` and `model_reasoning_effort` in `router-*.toml`. To change the fall
 
 ## 6. Sources
 
-- https://learn.chatgpt.com/docs/agent-configuration/subagents.md
+- https://learn.chatgpt.com/docs/agent-configuration/subagents.md (model precedence for custom agents and spawn-time values)
 - https://learn.chatgpt.com/docs/models.md
 
 ## Verified
 
-Follows the vendor's documented format; not yet run end to end. Please report results.
+Ran in a live session. The author ran the plugin in Codex, which spawned a fast-tier subagent. Not yet fully tested end to end. Please report results.

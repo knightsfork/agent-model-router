@@ -5,12 +5,12 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 INSTALL="$ROOT/install.sh"
 FAILS=0
-TMPS=()
+WORK="$(mktemp -d)"
+trap 'rm -rf "$WORK"' EXIT
 
-cleanup() { for t in "${TMPS[@]}"; do rm -rf "$t"; done; }
-trap cleanup EXIT
-
-mk() { local d; d="$(mktemp -d)"; TMPS+=("$d"); echo "$d"; }
+# mk prints a fresh directory under $WORK; it runs in a subshell, so cleanup
+# relies on the single parent dir rather than on a list kept in a variable.
+mk() { mktemp -d "$WORK/t.XXXXXX"; }
 pass() { echo "  ok   $1"; }
 fail() { echo "  FAIL $1"; FAILS=$((FAILS + 1)); }
 check() { # check DESC CMD...

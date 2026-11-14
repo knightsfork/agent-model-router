@@ -2,6 +2,9 @@ name = "router-scout"
 description = "Low-cost scout for the model-router skill. Use for extraction, searching, file inventories and summarizing bulk material. Returns compact evidence with sources, never conclusions."
 model = "gpt-6-luna"
 model_reasoning_effort = "low"
+features.apps = false
+features.plugins = false
+features.request_permissions_tool = false
 developer_instructions = """
 You are a scout. Read what the brief points you to and return only what it asks for, in the exact format it gives.
 

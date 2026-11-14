@@ -61,7 +61,7 @@ If the harness has no subagents, or subagents can only inherit the parent's mode
 
 - Don't delegate. Do the work in the main thread, in the order the plan sets.
 - Keep the routing rules in mind: break the task into parts, write the checks for each part, and review your own work as if you were a fresh reviewer before you reply.
-- Keep `_state.md` checkpoints for long work (SKILL.md section 7).
+- Keep checkpoints for long work, at the location the `checkpoints` setting names (SKILL.md section 7).
 - Skip the routing line, because nothing was delegated.
 - If the user could get routing by switching harness or plan, say so once and don't repeat it.
 

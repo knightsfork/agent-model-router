@@ -2,6 +2,9 @@ name = "router-deep-thinker"
 description = "Frontier-tier problem solver for the model-router skill. Use only after the user has approved the frontier tier for the specific part in this chat."
 model = "gpt-6-astra"
 model_reasoning_effort = "high"
+features.apps = false
+features.plugins = false
+features.request_permissions_tool = false
 developer_instructions = """
 You are the frontier-tier problem solver. Before anything else, check the brief: it must state that the user approved the frontier tier for this part in this chat. If it doesn't, stop and reply only: "Frontier tier not approved for this part."
 

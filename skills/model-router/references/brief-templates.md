@@ -2,6 +2,8 @@
 
 Fill-in templates for the five roles. Each follows the six brief fields in SKILL.md section 6: Goal, Inputs, Decisions and conventions, Skills to load, Output, Limits. Replace every `<placeholder>`. Delete lines that don't apply, but keep all six fields.
 
+Shared rules: never paste secrets, credentials or tokens into a brief. Point to files instead, and include only the files the part needs.
+
 ## Scout (`fast`, low), preset agent `router-scout`
 
 For reading and extraction.

@@ -2,14 +2,23 @@
 """Validate the model-router skill and every adapter agent file.
 
 Checks SKILL.md against the Agent Skills spec and each adapters/*/agents/*
-file for name, description and model. Needs Python 3.11+ and pyyaml.
+file for name, description and model. Needs Python 3.11+. PyYAML is used if
+installed; otherwise a small built-in parser handles the simple frontmatter
+subset these files use. Set MR_NO_YAML=1 to force the built-in parser.
 """
+import os
 import re
 import sys
 import tomllib
 from pathlib import Path
 
-import yaml
+try:
+    if os.environ.get("MR_NO_YAML") == "1":
+        raise ImportError("MR_NO_YAML=1")
+    import yaml
+except ImportError:
+    yaml = None
+    print("note: PyYAML not in use; using built-in fallback frontmatter parser")
 
 ROOT = Path(__file__).resolve().parent.parent
 SKILL_DIR = ROOT / "skills" / "model-router"
@@ -23,12 +32,91 @@ def record(ok, subject, detail=""):
     results.append(("PASS" if ok else "FAIL", subject, detail))
 
 
+def _scalar(v):
+    v = v.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "'\"":
+        q, v = v[0], v[1:-1]
+        if q == '"':
+            v = v.replace('\\"', '"').replace("\\\\", "\\")
+        else:
+            v = v.replace("''", "'")
+        return v
+    if v.startswith("[") and v.endswith("]"):
+        inner = v[1:-1].strip()
+        return [_scalar(x) for x in _split_inline(inner)] if inner else []
+    if v in ("true", "false"):
+        return v == "true"
+    if re.fullmatch(r"[-+]?\d+", v):
+        return int(v)
+    if re.fullmatch(r"[-+]?(\d+\.\d*|\.\d+)([eE][-+]?\d+)?|[-+]?\d+[eE][-+]?\d+", v):
+        return float(v)
+    return v
+
+
+def _split_inline(s):
+    parts, cur, q = [], "", None
+    for ch in s:
+        if q:
+            cur += ch
+            if ch == q:
+                q = None
+        elif ch in "'\"":
+            q = ch
+            cur += ch
+        elif ch == ",":
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    if cur.strip():
+        parts.append(cur)
+    return parts
+
+
+def mini_yaml(text):
+    """Parse the simple YAML subset used in frontmatter (no PyYAML needed)."""
+    data = {}
+    lines = [ln.rstrip() for ln in text.splitlines()
+             if ln.strip() and not ln.lstrip().startswith("#")]
+    i = 0
+    while i < len(lines):
+        ln = lines[i]
+        if ln[0] in " \t":
+            raise ValueError(f"unexpected indent: {ln!r}")
+        m = re.match(r"^([A-Za-z0-9_-]+):(?:\s+(.*))?$", ln)
+        if not m:
+            raise ValueError(f"cannot parse line: {ln!r}")
+        key, val = m.group(1), m.group(2)
+        i += 1
+        if val is not None and val.strip():
+            data[key] = _scalar(val)
+            continue
+        block = []
+        while i < len(lines) and lines[i][0] in " \t-":
+            block.append(lines[i])
+            i += 1
+        if not block:
+            data[key] = None
+        elif all(b.lstrip().startswith("- ") or b.strip() == "-" for b in block):
+            data[key] = [_scalar(b.lstrip()[1:]) for b in block]
+        else:
+            sub = {}
+            for b in block:
+                mm = re.match(r"^\s+([A-Za-z0-9_.-]+):\s*(.*)$", b)
+                if not mm:
+                    raise ValueError(f"cannot parse nested line: {b!r}")
+                sub[mm.group(1)] = _scalar(mm.group(2))
+            data[key] = sub
+    return data
+
+
 def frontmatter(path):
     text = path.read_text(encoding="utf-8")
     m = re.match(r"^---\r?\n(.*?)\r?\n---\r?\n", text, re.S)
     if not m:
         raise ValueError("no YAML frontmatter")
-    data = yaml.safe_load(m.group(1))
+    data = (yaml.safe_load(m.group(1)) if yaml
+            else mini_yaml(m.group(1)))
     if not isinstance(data, dict):
         raise ValueError("frontmatter is not a mapping")
     return data

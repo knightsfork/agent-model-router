@@ -30,6 +30,7 @@ These defaults come from the vendor's docs as of November 2026. Check the model 
 - The model is fixed per definition. To run the same role on a different model, you need a second agent file.
 - `max_turns` caps each agent (scout 15, builder 30, architect 30, reviewer 20, deep-thinker 20). Raise it if long jobs stop early.
 - Ask for approval in plain chat and wait for the answer.
+- Read-only: instruction only; no tools list is set.
 
 ## 5. How to change the models
 
