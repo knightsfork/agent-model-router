@@ -5,8 +5,8 @@
   "author": {
     "name": "Hatem Mohamed"
   },
-  "homepage": "https://github.com/engreg/claude-model-router",
-  "repository": "https://github.com/engreg/claude-model-router",
+  "homepage": "https://github.com/knightsfork/claude-model-router",
+  "repository": "https://github.com/knightsfork/claude-model-router",
   "license": "MIT",
   "keywords": ["subagents", "model-routing", "cost", "orchestration", "skills"]
 }
