@@ -43,19 +43,19 @@ The three preset agents have their model, effort and tools already set, so the s
 This installs the skill and the three preset agents together. In Claude Code 2.1.275 or later, run this in one step:
 
 ```
-/plugin install model-router --marketplace engreg/claude-model-router
+/plugin install model-router --marketplace knightsfork/claude-model-router
 ```
 
 Or from a terminal:
 
 ```
-claude plugin install model-router --marketplace engreg/claude-model-router
+claude plugin install model-router --marketplace knightsfork/claude-model-router
 ```
 
 In older versions, add the marketplace first:
 
 ```
-/plugin marketplace add engreg/claude-model-router
+/plugin marketplace add knightsfork/claude-model-router
 /plugin install model-router@model-router
 ```
 
@@ -64,7 +64,7 @@ In older versions, add the marketplace first:
 For all your projects:
 
 ```
-git clone https://github.com/engreg/claude-model-router.git model-router-repo
+git clone https://github.com/knightsfork/claude-model-router.git model-router-repo
 mkdir -p ~/.claude/skills ~/.claude/agents
 cp -r model-router-repo/skills/model-router ~/.claude/skills/
 cp model-router-repo/agents/*.md ~/.claude/agents/
@@ -73,7 +73,7 @@ cp model-router-repo/agents/*.md ~/.claude/agents/
 For one repository only:
 
 ```
-git clone https://github.com/engreg/claude-model-router.git model-router-repo
+git clone https://github.com/knightsfork/claude-model-router.git model-router-repo
 mkdir -p .claude/skills .claude/agents
 cp -r model-router-repo/skills/model-router .claude/skills/
 cp model-router-repo/agents/*.md .claude/agents/
