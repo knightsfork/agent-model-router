@@ -4,13 +4,13 @@ description: Apply automatically, without being named, at the start of any task 
 license: MIT
 compatibility: Works in coding agents that can spawn subagents with a selectable model - Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot. Needs subagent support with per-call or per-agent model choice. Without subagents it falls back to working inline.
 metadata:
-  version: "1.0.0"
+  version: "1.0.1"
   author: "Hatem Mohamed"
 ---
 
 # Model router
 
-Delegate every part that costs more than an agent's fixed overhead, and run each subagent on the cheapest model tier that will do its part well. Installing this skill is the user's standing request to delegate to subagents, so don't ask for permission to spawn them.
+Run each subagent on the cheapest model tier that will do its part well. With `delegation: auto` (the default), installing this skill is a standing request to delegate substantial parts under section 1's rules, so don't ask for permission to spawn subagents. With `delegation: on_request`, the skill delegates only when the user asks. A request to delegate is not approval for a gated tier.
 
 This skill applies automatically. The user never needs to name or call it. Use it on any task with more than one step, in any chat. Section 1 says which parts stay in the main thread.
 
@@ -43,12 +43,22 @@ approval_required_tiers: [frontier]
 recommended_main_tier: strong
 max_parallel_agents: 5
 routing_log: false
+checkpoints: outside_repo
+delegation: auto
 ```
 
 - `approval_required_tiers`: any tier listed here runs only after the user says yes in the chat (section 3a). Default is `[frontier]`. Add `strong` to gate it too, or use `[]` to gate nothing.
 - `recommended_main_tier`: a recommendation only. The skill can't change the main model. It is the tier the user should pick for the chat, because the main thread makes the routing decisions and does the final check. It stays `strong` so the main thread can judge briefs and results, and so a cost-capped harness such as Copilot can still delegate `strong` parts.
 - `max_parallel_agents`: the most agents to run at once.
-- `routing_log`: when `true`, the skill appends one row per agent to `_routing-log.md` in the working folder, with these columns: date | task | part | tier | effort | outcome. The outcome is `ok`, `escalated` or `failed`. Default is `false`.
+- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<parent-folder>-<project-folder>/routing-log.md`, with these columns: date | task | part | tier | effort | outcome. The outcome is `ok`, `escalated` or `failed`. Default is `false`. If that location isn't writable, skip the log and say so once. Never fall back to writing inside the repo. With `checkpoints: in_repo`, the log goes to `.model-router/routing-log.md` in the working folder instead.
+- `checkpoints`: where the section 7 checkpoint file goes.
+  - `outside_repo` (default): write `_state.md` to `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md`. If that location isn't writable (for example a sandbox that only allows writes in the workspace), skip checkpoints and say so once. Never fall back to writing inside the repo.
+  - `in_repo`: write `.model-router/_state.md` in the working folder, and remind the user once to git-ignore it.
+  - `off`: write no checkpoints.
+- `delegation`: `auto` (default) delegates substantial parts as section 1 describes. `on_request` still loads the skill, but delegates only when the user asks for delegation or parallel work.
+- `<parent-folder>-<project-folder>` in the paths above is the working folder's name joined to its parent folder's name with a hyphen (for example `work-my-app`), so two projects with the same folder name don't share files.
+
+Checkpoints and routing logs hold only goals, decisions, status and file paths. Never put secrets, credentials, tokens, personal data or file contents in them.
 
 **Fallback rule:** if a model value is rejected or unavailable on the user's plan or harness, use the nearest available tier and say so once in the reply. Don't retry the rejected value.
 
@@ -60,7 +70,13 @@ On Copilot, for example, frontier work runs in the main chat after approval (see
 - Combining the results, doing the final check, and publishing or sending anything.
 - Conversational replies and single quick steps, such as one lookup, one short edit or a reply from what's already in context. Every agent has a fixed cost: it starts cold, it needs a brief, and its result has to be read. When a step costs less than that, do it in the main thread.
 
-Everything else goes to a subagent.
+Delegate a part only when it is substantial: reading many files or long documents, producing a deliverable, a broad search, or a review.
+- Batch small `fast`-tier items into one agent instead of many.
+- Don't delegate tightly coupled steps that need back-and-forth, or anything the main thread can finish in about the time it takes to write the brief.
+
+Briefs, extra model calls and the final check cost tokens and time, so short or tightly coupled tasks can cost more delegated than inline.
+
+With `delegation: on_request`, delegate only when the user asks for delegation or parallel work. A request to delegate is not approval for a gated tier.
 
 ## 2. How to spawn
 
@@ -69,7 +85,7 @@ The exact call differs by harness. Follow the platform file from Step 0. These r
 - If the preset agents are installed, use them: `router-scout` for `fast` work, `router-builder` for `standard` work, `router-architect` for `strong` work, `router-reviewer` for `strong` review work and `router-deep-thinker` for `frontier` work. When installed as a plugin, their names may carry a prefix. Otherwise spawn a general-purpose subagent, and use a read-only search or planning agent where the harness offers one.
 - Choose the model for every spawn. An agent without a model inherits the main thread's model, which defeats the point of this skill.
 - Set the effort level from the tier table when the harness lets you. On harnesses that fix the model in the agent definition and don't allow it per call, route by calling the preset agent for the tier.
-- Never run a gated tier by any route without approval, including a preset agent whose default model is gated. If `strong` is gated, call `router-architect` or `router-reviewer` only with an approved lower model, or ask first. On platforms where the model is fixed per definition (Gemini CLI, Cursor, Copilot), ask the user first instead.
+- Never run a gated tier by any route without approval, including a preset agent whose default model is gated. If `strong` is gated, call `router-architect` or `router-reviewer` only with an approved lower model, or ask first. On platforms where the model is fixed per definition (Codex, Gemini CLI, Cursor, Copilot), ask the user first instead. On Codex an installed preset's `model` wins over a model named at spawn time, so naming a lower model doesn't help.
 - Never route work through a spawn mode that ignores the model you chose, such as a fork of the main thread that always runs on the parent's model. On Claude Code this is `subagent_type: "fork"`; see the platform file.
 - Launch independent agents together so they run in parallel, up to `max_parallel_agents` at once. One agent per file is fine for bulk jobs, in batches of that size. Leave them in the background unless the very next step needs the result.
 - Subagents don't spawn their own subagents. The main thread owns all routing.
@@ -121,7 +137,7 @@ If the main thread itself runs on a `standard` or `fast` model, the table still 
 
 ## 3a. Approval for gated tiers
 
-Every tier in `approval_required_tiers` (default: `frontier`) needs the user's yes before it runs.
+Every tier in `approval_required_tiers` (default: `frontier`) needs the user's yes before it runs. The orchestrator must have that approval before it spawns any gated-tier agent. The deep-thinker's own self-check is only a backstop that runs after the agent has started.
 - Ask with the harness's structured question tool if it has one (on Claude Code, AskUserQuestion). If it doesn't, ask in plain chat. Name each part that might need the tier and say why a lower tier may fall short. Offer two options: run on the gated tier, or use the tier below it. Put every part of the task that might need the gated tier into that one question.
 - A yes covers only the parts named in that question. Any other part needs its own yes.
 - If the user isn't there to answer, for example in a scheduled run or when the question goes unanswered, and the part has not been tried yet (the gated tier was proposed up front), run the part on the tier below. In the final reply, name it as a part that could be re-run on the gated tier if the user wants.
@@ -133,6 +149,8 @@ Every tier in `approval_required_tiers` (default: `frontier`) needs the user's y
 - **Separate outputs.** Agents running in parallel each write to their own files, so none overwrites another's work.
 
 Worked examples: `references/decomposition-examples.md`.
+
+**Read-only presets.** The Claude Code and Copilot reviewers have the file-edit tools removed, but they keep shell access so they can run checks, so this is not a hard read-only boundary: the shell can still change files. The Claude Code deep-thinker has no shell or edit tools, so it can't write. Cursor's `readonly: true` blocks edits and state-changing shell commands, per Cursor's docs. Codex, Gemini CLI and the Claude apps rely on instructions only. Subagents otherwise inherit the parent session's permissions, so for sensitive reviews, run the session itself in the platform's read-only mode and scope briefs to the files needed.
 
 ## 5. Escalation
 
@@ -158,8 +176,8 @@ Fill-in templates per tier: `references/brief-templates.md`.
 
 The agent can't type `/compact` or any other slash command. The harness may compact the chat by itself when the context fills up, and the user can run `/compact` or the equivalent themselves wherever their app offers it. Instead, this skill does three things:
 - Bulk reading goes to agents, and only their short summaries come back. The main thread never pastes whole documents into the chat.
-- In long work, write a checkpoint file called `_state.md` at each milestone. Save it in the working folder. It records the goal, the decisions, what's done, what's next and the file paths. If the chat gets compacted, nothing is lost.
-- When a long chat moves into a new phase, tell the user in one line: "Good point to compact or start a fresh chat. State saved to <path>."
+- In long work, write a checkpoint file called `_state.md` at each milestone, at the location the `checkpoints` setting names (default: `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md`, outside the repo). It records the goal, the decisions, what's done, what's next and the file paths, and never secrets, credentials, tokens, personal data or file contents. If that location isn't writable, skip checkpoints and say so once; never write them inside the repo unless `checkpoints: in_repo`. Don't request escalated permissions to write checkpoints or logs; if the location isn't writable, skip them. With `checkpoints: off`, write none. If the chat gets compacted, nothing is lost.
+- When a long chat moves into a new phase, tell the user in one line: "Good point to compact or start a fresh chat. State saved to <path>." Skip the path if no checkpoint was written.
 
 ## 8. Routing line
 

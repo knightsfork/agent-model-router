@@ -47,6 +47,7 @@ The presets do not set `user-invocable: false`, because it is unverified across 
 - **Model strings differ by surface.** VS Code uses the `(copilot)` suffix. Other surfaces (GitHub.com, CLI, JetBrains) may use different strings. Check the picker on your surface.
 - **Names are case-sensitive**, both for agents and for entries in an `agents:` list.
 - The `agent` tool must be enabled for the orchestrator, or no subagent call is possible.
+- Read-only: the reviewer has `edit` removed but keeps `execute` so it can run checks, so it is not a hard read-only boundary; the shell can still change files. For sensitive reviews, run the session itself in a read-only mode.
 
 ## 5. How to change the models
 

@@ -55,8 +55,16 @@ case "$TARGET" in
 esac
 
 # build_zip: builds dist/model-router.zip with a top-level model-router/ folder.
+BUILD_TMP=""
+cleanup_build() {
+  if [ -n "$BUILD_TMP" ]; then
+    rm -rf "$BUILD_TMP"
+  fi
+}
+
 build_zip() {
   local out="$ROOT/dist/model-router.zip" tmp
+  trap cleanup_build EXIT
   echo "== claude-app =="
   if [ ! -d "$SKILL_SRC" ]; then
     echo "error: missing $SKILL_SRC" >&2
@@ -67,6 +75,7 @@ build_zip() {
   else
     mkdir -p "$ROOT/dist"
     tmp="$(mktemp -d)"
+    BUILD_TMP="$tmp"
     mkdir "$tmp/model-router"
     cp -R "$SKILL_SRC/." "$tmp/model-router/"
     rm -f "$out"
@@ -83,7 +92,8 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
             z.write(p, os.path.relpath(p, src))
 PY
     fi
-    rm -rf "$tmp"
+    cleanup_build
+    BUILD_TMP=""
     echo "built $out"
   fi
   echo

@@ -33,6 +33,7 @@ None. The apps don't load `.claude/agents`, so the `router-*` agents don't exist
 
 - Subagents depend on the user's plan and app features. If the Agent tool isn't there, work inline.
 - Fork subagents ignore `model`. Never route through them.
+- Read-only: instruction only; agents use the session's tools.
 - Ask for approval with the AskUserQuestion tool. If it fails or is missing, ask in plain chat and wait.
 - Subagents return only a final message. Have them write large outputs to the files the brief names.
 

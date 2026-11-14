@@ -40,7 +40,7 @@ Here is the model each tier uses on each platform out of the box:
 |---|---|---|---|---|
 | Claude Code | Yes | Yes | `model` and `effort` on every Agent tool call, and in the preset agents' frontmatter | Tested (plugin validator) |
 | Claude apps (desktop, web, mobile) | Yes | none (uses general-purpose agents) | `model` and `effort` on every Agent tool call | Used in live sessions |
-| OpenAI Codex | Yes | Yes | Name the model when spawning; custom agents set `model` and `model_reasoning_effort` | Documented format, not yet tested end to end |
+| OpenAI Codex | Yes | Yes | Call the preset for the tier; custom agents set `model` and `model_reasoning_effort` | Ran in a live session. The author ran the plugin in Codex, which spawned a fast-tier subagent. Not yet fully tested end to end. |
 | Gemini CLI | Yes | Yes | Set in each agent's frontmatter; call the preset for the tier | Documented format, not yet tested end to end |
 | Cursor | Yes | Yes | Set in each agent's frontmatter; call the preset for the tier | Documented format, not yet tested end to end |
 | GitHub Copilot | Yes | Yes (no frontier preset) | Set in each agent's frontmatter; a subagent can't cost more than the parent | Documented format, not yet tested end to end |
@@ -120,13 +120,22 @@ Cursor also reads `.claude/` and `.codex/` agent folders, and its own `.cursor/`
 
 **Claude Code.** The orchestrator passes `model` and `effort` on each Agent tool call. Fork subagents ignore `model`, so the skill never routes through them. The preset agents also set model and effort in their frontmatter. The plugin registers the agents from `adapters/claude-code/agents/`.
 
-**OpenAI Codex.** Ask for the model in plain language when spawning. The model is resolved in this order: the value in the spawn request, then `[agents] default_subagent_model` in `config.toml`, then the parent's model. Custom agents are TOML files with `model` and `model_reasoning_effort`.
+**OpenAI Codex.** Ask for the model in plain language when spawning. Custom agents are TOML files with `model` and `model_reasoning_effort`. An installed preset's model wins over a model named at spawn time, so route by calling the preset for the tier. Without a preset, the model comes from the spawn request, then `[agents] default_subagent_model` in `config.toml`, then the parent's model.
 
 **Gemini CLI.** The model belongs to the agent definition and can't be passed per call, so the skill routes by calling the preset agent for the tier. The `fast` and `frontier` model IDs are best effort: Gemini CLI has no separate top model, and Flash-Lite IDs aren't confirmed.
 
 **Cursor.** The model is set in agent frontmatter, and `inherit` is the default. The parent can name a model when it launches an agent, but whether that overrides the frontmatter is unconfirmed, so the skill routes through the presets.
 
 **GitHub Copilot.** The model is set in agent frontmatter as a string or a prioritized list. Subagents run through the `agent` tool, so add `agent` to your orchestrator agent's tools. Model names vary by surface; VS Code uses the `(copilot)` suffix.
+
+## Security
+
+- The skill makes no network calls of its own and installs no hooks. Nothing runs automatically. `install.sh` runs only when you run it, and only copies files.
+- Subagents inherit the parent session's permissions.
+- Read-only is not a hard boundary on most platforms. The Claude Code reviewer has the file-edit tools removed, and the Copilot reviewer has `edit` removed, but both keep shell access (`Bash`, `execute`) so they can run checks, and the shell can still change files. The Claude Code deep-thinker has no shell or edit tools, so it can't write. Cursor's `readonly: true` blocks edits and state-changing shell commands, per Cursor's docs. Codex, Gemini CLI and the Claude apps rely on instructions only. The Codex presets also switch off `features.apps`, `features.plugins` and `features.request_permissions_tool`.
+- For sensitive reviews, run the session in the platform's read-only mode.
+- Checkpoints and routing logs are written outside the repo by default (`~/.model-router/`) and are instructed to hold only goals, decisions, status and paths, never secrets.
+- The orchestrator is instructed to get approval before spawning any gated-tier agent; the deep-thinker's self-check is a backstop.
 
 ## Preset agents
 
@@ -147,12 +156,16 @@ approval_required_tiers: [frontier]
 max_parallel_agents: 5
 routing_log: false
 recommended_main_tier: strong
+checkpoints: outside_repo
+delegation: auto
 ```
 
 - `approval_required_tiers`: tiers that need your approval before they run.
 - `max_parallel_agents`: how many delegated agents run at once.
 - `recommended_main_tier`: the tier you should run the main chat model on, since the orchestrator's own judgment sets the quality of every delegation.
-- `routing_log`: when `true`, each routing decision is recorded in `_routing-log.md` so you can tune the tier table.
+- `checkpoints`: `outside_repo` (default) writes `_state.md` to `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md` (for example `~/.model-router/checkpoints/work-my-app/_state.md`), `in_repo` writes `.model-router/_state.md` in the working folder, `off` writes none. `<parent-folder>-<project-folder>` is the working folder's name joined to its parent folder's name with a hyphen, so two projects with the same folder name don't share files.
+- `delegation`: `auto` (default) delegates substantial parts as section 1 describes. `on_request` still loads the skill, but delegates only when the user asks for delegation or parallel work. A request to delegate is not approval for a gated tier.
+- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<parent-folder>-<project-folder>/routing-log.md` (or `.model-router/routing-log.md` with `checkpoints: in_repo`), so you can tune the tier table.
 
 To change which model a tier uses, edit the `model` (and effort) values in the adapter files you installed, or the tier table in `skills/model-router/references/platforms/<platform>.md`. Then reinstall with `--force`, or edit the installed copies directly.
 
@@ -165,9 +178,9 @@ Plugin installs on Claude Code are replaced when the plugin updates, so edits to
 - Copilot: a subagent can't use a model that costs more than its parent. No frontier preset is shipped; the frontier tier there means running the part in the main chat on a top model, after approval.
 - Gemini CLI, Cursor and Copilot set the model per agent definition, so routing means calling the right preset.
 - The orchestrator can't run `/compact` itself. On long jobs it writes progress to `_state.md` so work survives compaction.
-- Savings aren't guaranteed. Delegation adds overhead, and short tasks may cost more than doing them inline.
+- Savings aren't guaranteed. Delegation has overhead (briefs, extra calls, review), so short or tightly coupled tasks can cost more when delegated, and the skill keeps those inline. If you want delegation only for large parallel tasks, set `delegation: on_request`.
 - Chat apps without subagent tools (for example the ChatGPT and Gemini apps) can't route; the skill works inline there and skips the routing line.
-- Claude Code is tested with the plugin validator, and the Claude desktop app has been used in live sessions with real Haiku, Sonnet and Opus subagents. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
+- Claude Code is tested with the plugin validator, and the Claude desktop app has been used in live sessions with real Haiku, Sonnet and Opus subagents. Codex: ran in a live session. The author ran the plugin in Codex, which spawned a fast-tier subagent. Not yet fully tested end to end. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
 
 ## Repository layout
 
@@ -199,7 +212,7 @@ python3 scripts/validate.py
 bash tests/test_install.sh
 ```
 
-`validate.py` needs Python 3.11 or later and `pyyaml`. If you test a platform end to end, please open an issue with the result.
+`validate.py` needs Python 3.11 or later. It uses `pyyaml` if installed and otherwise a built-in parser (`MR_NO_YAML=1` forces it). If you test a platform end to end, please open an issue with the result.
 
 ## License
 

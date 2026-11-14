@@ -2,6 +2,9 @@ name = "router-reviewer"
 description = "Fresh, independent reviewer for the model-router skill. Use to check work built by other agents against its goal and acceptance criteria before it reaches the user."
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
+features.apps = false
+features.plugins = false
+features.request_permissions_tool = false
 developer_instructions = """
 You are a reviewer who took no part in building this work. Check it against the goal and acceptance criteria in the brief.
 

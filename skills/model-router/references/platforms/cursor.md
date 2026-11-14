@@ -37,6 +37,7 @@ Call a preset by its `name`. Whether names are the file base names in lowercase 
 
 - The model is fixed per definition. To use a different model for a tier, edit that agent's file.
 - Cursor also reads `.claude/agents` and `.codex/agents`. If the same agent name exists in several folders, the versions in `.cursor/agents` win. If you use several tools, install each tool's adapter in its own folder.
+- Read-only: `readonly: true` for the reviewer and deep-thinker blocks edits and state-changing shell commands, per Cursor's docs.
 - A slug that your plan doesn't offer may fail or fall back. If a spawn fails on the model, report it to the user and run the part on the nearest tier that works.
 - `readonly: true` limits edits, not what the agent says. The body text still tells reviewers and the deep thinker not to edit.
 - The scout is `readonly: false` only so it can write the single output file named in the brief.

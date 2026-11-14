@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.0.1 - 2026-11-14
+
+Fixes from an external security and efficiency review.
+
+- `tests/test_install.sh` no longer leaks temporary folders: one work dir with an `EXIT` trap replaces the `TMPS` array, and the script is Bash 3.2 compatible.
+- `scripts/validate.py` no longer requires PyYAML. A built-in fallback parser is used when it is missing, and `MR_NO_YAML=1` forces it.
+- Codex presets `router-scout`, `router-reviewer` and `router-deep-thinker` switch off `features.apps`, `features.plugins` and `features.request_permissions_tool`.
+- README: Codex status is now "Ran in a live session", plus a Security section, the new settings, the delegation-overhead limitation and the Codex preset note.
+- Codex gate fix: on Codex, if `strong` is gated, the orchestrator asks the user before calling `router-architect` or `router-reviewer`, because an installed preset's `model` wins over a model named at spawn time. `codex.md` now leads with preset-based routing and lists the `features.*` keys.
+- Honest read-only wording: the Claude Code and Copilot reviewers keep shell access (`Bash`, `execute`), so they are not a hard read-only boundary. The Claude Code deep-thinker can't write, and Cursor's `readonly: true` blocks edits and state-changing shell commands. Advice kept: run the session in the platform's read-only mode for sensitive reviews.
+- Collision-safe paths: checkpoints and routing logs use `<parent-folder>-<project-folder>`, and the README paths and `delegation` wording now match SKILL.md. Codex status is the same in every file.
+- `scripts/validate.py` fallback parser returns ints and floats as numbers and `true`/`false` as booleans, matching PyYAML.
+- `install.sh` removes its temporary build folder on every exit path, and `.gitignore` covers `__pycache__/`.
+- Skill text: checkpoints are written outside the repo by default, a `delegation` setting (`auto | on_request`) with tighter delegation rules, the Codex precedence fix (the preset's model wins over a model named at spawn), read-only enforcement notes per platform, backstop wording for the frontier gate, and no secrets in briefs.
+
 ## 1.0.0 - 2026-11-14
 
 First public release.
