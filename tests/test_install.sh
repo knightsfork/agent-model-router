@@ -111,6 +111,31 @@ for p in claude-code codex gemini-cli cursor copilot; do
   check "all installs $p" test -f "$base/$SK/model-router/SKILL.md"
 done
 
+echo "[claude-app zip]"
+base="$(mk)"
+rm -rf "$ROOT/dist"
+out="$(HOME="$base" "$INSTALL" claude-app 2>&1)"
+check "claude-app builds zip" test -f "$ROOT/dist/model-router.zip"
+check "claude-app prints upload hint" grep -q "Upload dist/model-router.zip as a custom skill in Claude's skill settings." <<<"$out"
+check "zip has model-router/SKILL.md" python3 -c "
+import sys, zipfile
+n = zipfile.ZipFile(sys.argv[1]).namelist()
+assert 'model-router/SKILL.md' in n
+assert any(x.startswith('model-router/references/platforms/claude-app.md') for x in n)
+assert all(x.startswith('model-router/') for x in n)" "$ROOT/dist/model-router.zip"
+check "claude-app writes nothing to HOME" bash -c "[ -z \"\$(find '$base' -mindepth 1 -print -quit)\" ]"
+rm -rf "$ROOT/dist"
+HOME="$base" "$INSTALL" claude-desktop >/dev/null 2>&1
+check "alias claude-desktop builds zip" test -f "$ROOT/dist/model-router.zip"
+rm -rf "$ROOT/dist"
+out="$(HOME="$base" "$INSTALL" claude-app --dry-run 2>&1)"
+check "claude-app dry-run prints would" grep -qi "would" <<<"$out"
+check "claude-app dry-run creates no zip" bash -c "! test -e '$ROOT/dist'"
+check "claude-app dry-run writes nothing to HOME" bash -c "[ -z \"\$(find '$base' -mindepth 1 -print -quit)\" ]"
+base="$(mk)"
+HOME="$base" "$INSTALL" all >/dev/null 2>&1
+check "all does not build the zip" bash -c "! test -e '$ROOT/dist'"
+
 echo "[idempotence and backups]"
 base="$(mk)"
 HOME="$base" "$INSTALL" claude-code >/dev/null 2>&1

@@ -2,7 +2,7 @@
 
 A skill that makes your coding agent route work to the right model. The main chat model acts as the orchestrator. It splits a task into parts and sends each part to the cheapest model tier that can do it well: simple extraction and searches go to a small model, routine builds to a mid-tier model, and judgment calls to a strong one. A fresh agent reviews the results before they reach you. The goal is lower cost and better focus on long tasks, without giving up quality where it matters.
 
-The skill follows the Agent Skills format. It works in coding agents that can spawn subagents with their own model: Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot.
+The skill follows the Agent Skills format. It works in coding agents that can spawn subagents with their own model: Claude Code, the Claude apps (desktop, web and mobile), OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot.
 
 ## How it works
 
@@ -22,6 +22,7 @@ At the end of a task that used delegation, the skill prints a line such as `Rout
 | Platform | Skill | Preset agents | How the model is chosen | Status |
 |---|---|---|---|---|
 | Claude Code | Yes | Yes | `model` and `effort` on every Agent tool call, and in the preset agents' frontmatter | Tested (plugin validator) |
+| Claude apps (desktop, web, mobile) | Yes | none (uses general-purpose agents) | `model` and `effort` on every Agent tool call | Used in live sessions |
 | OpenAI Codex | Yes | Yes | Name the model when spawning; custom agents set `model` and `model_reasoning_effort` | Documented format, not yet tested end to end |
 | Gemini CLI | Yes | Yes | Set in each agent's frontmatter; call the preset for the tier | Documented format, not yet tested end to end |
 | Cursor | Yes | Yes | Set in each agent's frontmatter; call the preset for the tier | Documented format, not yet tested end to end |
@@ -65,6 +66,14 @@ cd agent-model-router
 ```
 
 The installer never overwrites an existing file that differs from this version. It skips identical files silently and keeps the others, then tells you how many differ. Add `--force` to overwrite; each replaced file is first saved as `<file>.bak.<YYYYmmddHHMMSS>`, and an existing backup is never overwritten. Add `--dry-run` to see what would happen without changing anything. It works from any directory.
+
+### Claude apps (desktop, web, mobile)
+
+```
+./install.sh claude-app
+```
+
+This builds `dist/model-router.zip` and writes nothing else. Upload it as a custom skill in Claude's skill settings. The alias `claude-desktop` also works, and `all` doesn't include it. To do it by hand, zip the `skills/model-router` folder so that `model-router/SKILL.md` is inside the zip, then upload that. Subagents depend on your plan and app features; without them the skill works inline.
 
 ### Manual install
 
@@ -130,8 +139,8 @@ Plugin installs on Claude Code are replaced when the plugin updates, so edits to
 - Gemini CLI, Cursor and Copilot set the model per agent definition, so routing means calling the right preset.
 - The orchestrator can't run `/compact` itself. On long jobs it writes progress to `_state.md` so work survives compaction.
 - Savings aren't guaranteed. Delegation adds overhead, and short tasks may cost more than doing them inline.
-- Consumer chat apps without subagents can't use it. There the skill does the work directly and skips the routing line.
-- Only Claude Code is tested, with the plugin validator. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
+- Chat apps without subagent tools (for example the ChatGPT and Gemini apps) can't route; the skill works inline there and skips the routing line.
+- Claude Code is tested with the plugin validator, and the Claude desktop app has been used in live sessions with real Haiku, Sonnet and Opus subagents. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
 
 ## Repository layout
 
@@ -142,14 +151,14 @@ skills/model-router/
   references/
     brief-templates.md
     decomposition-examples.md
-    platforms/         claude-code, codex, gemini-cli, cursor, copilot, generic
+    platforms/         claude-code, claude-app, codex, gemini-cli, cursor, copilot, generic
 adapters/
   claude-code/agents/  router-*.md
   codex/agents/        router-*.toml
   gemini-cli/agents/   router-*.md
   cursor/agents/       router-*.md
   copilot/agents/      router-*.agent.md
-install.sh             installer
+install.sh             installer (claude-app builds dist/model-router.zip)
 tests/test_install.sh  installer tests
 scripts/validate.py    skill and agent file validator
 ```

@@ -12,7 +12,11 @@ usage() {
 Usage: $0 <platform|all> [--project DIR] [--force] [--dry-run]
 
 Platforms: claude-code (alias: claude), codex, gemini-cli (alias: gemini),
-           cursor, copilot, or all.
+           cursor, copilot, claude-app (alias: claude-desktop), or all.
+
+  claude-app builds dist/model-router.zip in this repo to upload as a custom
+  skill in the Claude apps. It writes nothing under \$HOME or --project, and
+  "all" does not include it (all covers only tools with skill folders).
 
   --project DIR  Install into project paths under DIR instead of \$HOME.
   --force        Overwrite differing files (the old file is saved as
@@ -46,8 +50,53 @@ done
 
 case "$TARGET" in
   claude) TARGET="claude-code" ;;
+  claude-desktop) TARGET="claude-app" ;;
   gemini) TARGET="gemini-cli" ;;
 esac
+
+# build_zip: builds dist/model-router.zip with a top-level model-router/ folder.
+build_zip() {
+  local out="$ROOT/dist/model-router.zip" tmp
+  echo "== claude-app =="
+  if [ ! -d "$SKILL_SRC" ]; then
+    echo "error: missing $SKILL_SRC" >&2
+    exit 1
+  fi
+  if [ "$DRY" -eq 1 ]; then
+    echo "would build $out"
+  else
+    mkdir -p "$ROOT/dist"
+    tmp="$(mktemp -d)"
+    mkdir "$tmp/model-router"
+    cp -R "$SKILL_SRC/." "$tmp/model-router/"
+    rm -f "$out"
+    if command -v zip >/dev/null 2>&1; then
+      (cd "$tmp" && zip -q -r "$out" model-router)
+    else
+      python3 - "$tmp" "$out" <<'PY'
+import os, sys, zipfile
+src, out = sys.argv[1], sys.argv[2]
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+    for d, _, files in sorted(os.walk(src)):
+        for f in sorted(files):
+            p = os.path.join(d, f)
+            z.write(p, os.path.relpath(p, src))
+PY
+    fi
+    rm -rf "$tmp"
+    echo "built $out"
+  fi
+  echo
+  if [ "$DRY" -eq 1 ]; then
+    echo "Dry run: nothing was changed."
+  fi
+  echo "Upload dist/model-router.zip as a custom skill in Claude's skill settings."
+  exit 0
+}
+
+if [ "$TARGET" = "claude-app" ]; then
+  build_zip
+fi
 
 if [ "$TARGET" = "all" ]; then
   LIST="$PLATFORMS"

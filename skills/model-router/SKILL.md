@@ -23,15 +23,16 @@ Before the first delegation in a session, identify the harness you are running i
 | Harness | File |
 |---|---|
 | Claude Code | `references/platforms/claude-code.md` |
+| Claude apps (desktop, web, mobile) | `references/platforms/claude-app.md` |
 | OpenAI Codex | `references/platforms/codex.md` |
 | Gemini CLI | `references/platforms/gemini-cli.md` |
 | Cursor | `references/platforms/cursor.md` |
 | GitHub Copilot | `references/platforms/copilot.md` |
 | Any other | `references/platforms/generic.md` |
 
-Identify the harness by the app you are running in and by its tool names, not by the model you are. Cursor, for example, can run Claude models and also reads `.claude/agents`, so a Claude model doesn't mean Claude Code. Copilot has an `agent` tool, Gemini CLI and Codex name themselves in their prompts, and Claude Code has an Agent tool with `subagent_type`. When unsure, ask the user once.
+Identify the harness by the app you are running in and by its tool names, not by the model you are. Cursor, for example, can run Claude models and also reads `.claude/agents`, so a Claude model doesn't mean Claude Code. Copilot has an `agent` tool, Gemini CLI and Codex name themselves in their prompts, and Claude Code has an Agent tool with `subagent_type`. An Agent tool with `subagent_type` but no `.claude/agents` presets and no terminal-based Claude Code session means the Claude app. Its spawn mechanics match Claude Code, so if unsure between the two, either file works. When unsure, ask the user once.
 
-If the harness isn't listed, read `generic.md`. If the harness can't spawn subagents at all (for example the consumer chat apps), don't delegate. Do the work directly, keep the routing rules in mind, and skip the routing line.
+If the harness isn't listed, read `generic.md`. If the harness can't spawn subagents at all (for example chat apps without subagent tools), don't delegate. Do the work directly, keep the routing rules in mind, and skip the routing line.
 
 ## Settings
 
