@@ -1,14 +1,20 @@
 {
   "name": "model-router",
   "version": "1.0.0",
-  "description": "Routes subagent work to the cheapest model tier that will do each part well, with an approval gate on the top tier. Works across coding agents; this plugin installs the Claude Code adapter (Haiku, Sonnet, Opus, Fable).",
+  "description": "Routes subagent work to the cheapest model tier that will do each part well, with an approval gate on the top tier. Works across coding agents; this plugin installs the Claude Code adapter (Haiku, Sonnet, Opus, Fable). By Hatem Mohamed.",
   "author": {
     "name": "Hatem Mohamed"
   },
   "homepage": "https://github.com/knightsfork/agent-model-router",
   "repository": "https://github.com/knightsfork/agent-model-router",
   "license": "MIT",
-  "keywords": ["subagents", "model-routing", "cost", "orchestration", "skills"],
+  "keywords": [
+    "subagents",
+    "model-routing",
+    "cost",
+    "orchestration",
+    "skills"
+  ],
   "agents": [
     "./adapters/claude-code/agents/router-scout.md",
     "./adapters/claude-code/agents/router-builder.md",

@@ -1,6 +1,6 @@
 ---
 name: model-router
-description: Apply automatically, without being named, at the start of any task with more than one step. Splits the work and routes each part to a subagent on the cheapest model tier (fast, standard, strong, frontier) that will do it well.
+description: Apply automatically, without being named, at the start of any task with more than one step. Splits the work and routes each part to a subagent on the cheapest model tier (fast, standard, strong, frontier) that will do it well. By Hatem Mohamed.
 license: MIT
 compatibility: Works in coding agents that can spawn subagents with a selectable model - Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot. Needs subagent support with per-call or per-agent model choice. Without subagents it falls back to working inline.
 metadata:
