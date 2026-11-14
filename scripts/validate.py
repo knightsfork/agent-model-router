@@ -99,6 +99,12 @@ def check_agent(path):
     record(not problems, subj, "; ".join(problems))
 
 
+def check_platform_files():
+    ref = SKILL_DIR / "references" / "platforms" / "claude-app.md"
+    record(ref.is_file(), "platform reference: claude-app.md",
+           "present" if ref.is_file() else "missing")
+
+
 def check_adapters():
     base = ROOT / "adapters"
     if not base.is_dir():
@@ -120,6 +126,7 @@ def check_adapters():
 
 def main():
     check_skill()
+    check_platform_files()
     check_adapters()
     width = max(len(r[1]) for r in results)
     print(f"{'STATUS':<7}{'CHECK':<{width + 2}}DETAIL")
