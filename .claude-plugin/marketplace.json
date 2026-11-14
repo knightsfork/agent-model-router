@@ -1,6 +1,6 @@
 {
   "name": "model-router",
-  "description": "The model-router skill and its preset agents, for coding agents that can spawn subagents with their own model",
+  "description": "The model-router skill and its preset agents, for coding agents that can spawn subagents with their own model, by Hatem Mohamed",
   "owner": {
     "name": "Hatem Mohamed"
   },
@@ -8,7 +8,7 @@
     {
       "name": "model-router",
       "source": "./",
-      "description": "Routes subagent work to the cheapest model tier that will do each part well, with an approval gate on the top tier. Works across coding agents; this plugin installs the Claude Code adapter."
+      "description": "Routes subagent work to the cheapest model tier that will do each part well, with an approval gate on the top tier. Works across coding agents; this plugin installs the Claude Code adapter. By Hatem Mohamed."
     }
   ]
 }
