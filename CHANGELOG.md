@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2 - 2026-11-14
+
+- Release workflow: the zip is now built from the exact tag being released. The workflow checks out that tag, fails if `HEAD` isn't the tag's commit, and never overwrites an existing `model-router.zip` or `model-router.zip.sha256`. A manual run can replace them only with the new `replace_asset` input set to `true`, and the replacement is still built from the tag. `actions/checkout` is pinned to a full commit SHA.
+- New `model-router.zip.sha256` file is attached to each release so the download can be verified (`shasum -a 256 -c` on macOS, `sha256sum -c` on Linux).
+- Checkpoint paths no longer collide: `<project-id>` is the absolute working-folder path with the leading `/` removed and `/`, `\` and `:` replaced by `-`, and each session writes its own `_state-<YYYYmmdd-HHMM>-<short-task-slug>.md`. After compaction or in a new chat the skill reads the most recent file and starts a new one for new work. The routing log is at `~/.model-router/logs/<project-id>/routing-log.md`.
+
 ## 1.0.1 - 2026-11-14
 
 Fixes from an external security and efficiency review.

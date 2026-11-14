@@ -4,7 +4,7 @@ description: Apply automatically, without being named, at the start of any task 
 license: MIT
 compatibility: Works in coding agents that can spawn subagents with a selectable model - Claude Code, OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot. Needs subagent support with per-call or per-agent model choice. Without subagents it falls back to working inline.
 metadata:
-  version: "1.0.1"
+  version: "1.0.2"
   author: "Hatem Mohamed"
 ---
 
@@ -50,13 +50,14 @@ delegation: auto
 - `approval_required_tiers`: any tier listed here runs only after the user says yes in the chat (section 3a). Default is `[frontier]`. Add `strong` to gate it too, or use `[]` to gate nothing.
 - `recommended_main_tier`: a recommendation only. The skill can't change the main model. It is the tier the user should pick for the chat, because the main thread makes the routing decisions and does the final check. It stays `strong` so the main thread can judge briefs and results, and so a cost-capped harness such as Copilot can still delegate `strong` parts.
 - `max_parallel_agents`: the most agents to run at once.
-- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<parent-folder>-<project-folder>/routing-log.md`, with these columns: date | task | part | tier | effort | outcome. The outcome is `ok`, `escalated` or `failed`. Default is `false`. If that location isn't writable, skip the log and say so once. Never fall back to writing inside the repo. With `checkpoints: in_repo`, the log goes to `.model-router/routing-log.md` in the working folder instead.
+- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<project-id>/routing-log.md` (append-only; one shared file per project is fine), with these columns: date | task | part | tier | effort | outcome. The outcome is `ok`, `escalated` or `failed`. Default is `false`. If that location isn't writable, skip the log and say so once. Never fall back to writing inside the repo. With `checkpoints: in_repo`, the log goes to `.model-router/routing-log.md` in the working folder instead.
 - `checkpoints`: where the section 7 checkpoint file goes.
-  - `outside_repo` (default): write `_state.md` to `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md`. If that location isn't writable (for example a sandbox that only allows writes in the workspace), skip checkpoints and say so once. Never fall back to writing inside the repo.
-  - `in_repo`: write `.model-router/_state.md` in the working folder, and remind the user once to git-ignore it.
+  - `outside_repo` (default): write the session's checkpoint file to `~/.model-router/checkpoints/<project-id>/_state-<stamp>-<slug>.md`. If that location isn't writable (for example a sandbox that only allows writes in the workspace), skip checkpoints and say so once. Never fall back to writing inside the repo.
+  - `in_repo`: write `.model-router/_state-<stamp>-<slug>.md` in the working folder, and remind the user once to git-ignore it.
   - `off`: write no checkpoints.
 - `delegation`: `auto` (default) delegates substantial parts as section 1 describes. `on_request` still loads the skill, but delegates only when the user asks for delegation or parallel work.
-- `<parent-folder>-<project-folder>` in the paths above is the working folder's name joined to its parent folder's name with a hyphen (for example `work-my-app`), so two projects with the same folder name don't share files.
+- `<project-id>` in the paths above is the absolute path of the working folder with the leading `/` removed and every `/`, `\` and `:` replaced by `-` (for example `/Users/hatem/work/my-app` becomes `Users-hatem-work-my-app`). It is deterministic, needs no hashing, and is unique per checkout.
+- `<stamp>-<slug>` is the per-session file name part. At a session's first checkpoint, choose `_state-<YYYYmmdd-HHMM>-<short-task-slug>.md`, reuse that same file for the rest of the session, and never write to another session's file.
 
 Checkpoints and routing logs hold only goals, decisions, status and file paths. Never put secrets, credentials, tokens, personal data or file contents in them.
 
@@ -176,7 +177,7 @@ Fill-in templates per tier: `references/brief-templates.md`.
 
 The agent can't type `/compact` or any other slash command. The harness may compact the chat by itself when the context fills up, and the user can run `/compact` or the equivalent themselves wherever their app offers it. Instead, this skill does three things:
 - Bulk reading goes to agents, and only their short summaries come back. The main thread never pastes whole documents into the chat.
-- In long work, write a checkpoint file called `_state.md` at each milestone, at the location the `checkpoints` setting names (default: `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md`, outside the repo). It records the goal, the decisions, what's done, what's next and the file paths, and never secrets, credentials, tokens, personal data or file contents. If that location isn't writable, skip checkpoints and say so once; never write them inside the repo unless `checkpoints: in_repo`. Don't request escalated permissions to write checkpoints or logs; if the location isn't writable, skip them. With `checkpoints: off`, write none. If the chat gets compacted, nothing is lost.
+- In long work, write a checkpoint file at each milestone, at the location the `checkpoints` setting names (default: `~/.model-router/checkpoints/<project-id>/_state-<stamp>-<slug>.md`, outside the repo; `in_repo`: `.model-router/_state-<stamp>-<slug>.md`). Use one file per session and never write to another session's file. It records the goal, the decisions, what's done, what's next and the file paths, and never secrets, credentials, tokens, personal data or file contents. If that location isn't writable, skip checkpoints and say so once; never write them inside the repo unless `checkpoints: in_repo`. Don't request escalated permissions to write checkpoints or logs; if the location isn't writable, skip them. With `checkpoints: off`, write none. If the chat gets compacted, or you start in a new chat, read the most recent `_state-*.md` for the project. Start a new file for new work, and continue an existing file only if it is clearly the same task. If the chat gets compacted, nothing is lost.
 - When a long chat moves into a new phase, tell the user in one line: "Good point to compact or start a fresh chat. State saved to <path>." Skip the path if no checkpoint was written.
 
 ## 8. Routing line

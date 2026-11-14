@@ -3,22 +3,42 @@ name: Release
 on:
   push:
     tags: ['v*']
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: Release tag whose zip to rebuild from main (for example v1.0.0)
+        description: Release tag to build and publish (for example v1.0.2)
         required: true
+      replace_asset:
+        description: Delete and re-upload existing assets, built from the tag
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+
+      - name: Check HEAD is the tag's commit
+        run: |
+          tag_commit="$(git rev-parse "refs/tags/$TAG^{commit}")"
+          head_commit="$(git rev-parse HEAD)"
+          if [ "$tag_commit" != "$head_commit" ]; then
+            echo "HEAD ($head_commit) is not the commit of tag $TAG ($tag_commit)." >&2
+            exit 1
+          fi
 
       - name: Validate
         run: |
@@ -26,18 +46,32 @@ jobs:
           python3 scripts/validate.py
           bash tests/test_install.sh
 
-      - name: Build the Claude app zip
-        run: ./install.sh claude-app
+      - name: Build the Claude app zip and checksum
+        run: |
+          ./install.sh claude-app
+          cd dist
+          sha256sum model-router.zip > model-router.zip.sha256
+          cat model-router.zip.sha256
 
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag || github.event.release.tag_name || github.ref_name }}
+          REPLACE_ASSET: ${{ inputs.replace_asset || 'false' }}
         run: |
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" dist/model-router.zip --clobber
-          else
-            gh release create "$TAG" dist/model-router.zip \
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --verify-tag \
               --title "$TAG" \
-              --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
+              --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). Verify it with model-router.zip.sha256. For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
           fi
+          existing="$(gh release view "$TAG" --json assets --jq '.assets[].name')"
+          for name in model-router.zip model-router.zip.sha256; do
+            if printf '%s\n' "$existing" | grep -Fxq "$name"; then
+              if [ "$REPLACE_ASSET" = "true" ]; then
+                gh release delete-asset "$TAG" "$name" --yes
+              else
+                echo "$name already exists on release $TAG. Not overwriting. Re-run manually with replace_asset=true to replace it." >&2
+                exit 1
+              fi
+            fi
+          done
+          gh release upload "$TAG" dist/model-router.zip dist/model-router.zip.sha256

@@ -52,8 +52,11 @@ Here is the model each tier uses on each platform out of the box:
 No terminal needed:
 
 1. Download `model-router.zip` from the [latest release](https://github.com/knightsfork/agent-model-router/releases/latest).
-2. In Claude, open your skill settings and upload the zip as a custom skill.
-3. Make sure the skill is turned on, then start a new chat. It applies on its own; you never need to call it.
+2. Optional: verify the download with `shasum -a 256 -c model-router.zip.sha256` on macOS, or `sha256sum -c model-router.zip.sha256` on Linux (download both files into the same folder).
+3. In Claude, open your skill settings and upload the zip as a custom skill.
+4. Make sure the skill is turned on, then start a new chat. It applies on its own; you never need to call it.
+
+Release zips are built from the exact tag and never silently replaced.
 
 Routing needs a Claude session that can run subagents, which depends on your plan and app features. Without subagents the skill still works, doing everything in the main chat.
 
@@ -163,9 +166,9 @@ delegation: auto
 - `approval_required_tiers`: tiers that need your approval before they run.
 - `max_parallel_agents`: how many delegated agents run at once.
 - `recommended_main_tier`: the tier you should run the main chat model on, since the orchestrator's own judgment sets the quality of every delegation.
-- `checkpoints`: `outside_repo` (default) writes `_state.md` to `~/.model-router/checkpoints/<parent-folder>-<project-folder>/_state.md` (for example `~/.model-router/checkpoints/work-my-app/_state.md`), `in_repo` writes `.model-router/_state.md` in the working folder, `off` writes none. `<parent-folder>-<project-folder>` is the working folder's name joined to its parent folder's name with a hyphen, so two projects with the same folder name don't share files.
+- `checkpoints`: `outside_repo` (default) writes one file per session to `~/.model-router/checkpoints/<project-id>/_state-<stamp>-<slug>.md`, `in_repo` writes `.model-router/_state-<stamp>-<slug>.md` in the working folder, `off` writes none. `<project-id>` is the absolute path of the working folder with the leading `/` removed and every `/`, `\` and `:` replaced by `-` (for example `/Users/hatem/work/my-app` becomes `Users-hatem-work-my-app`), so it is unique per checkout. `<stamp>-<slug>` is `<YYYYmmdd-HHMM>-<short-task-slug>`, chosen at a session's first checkpoint and reused for that session; after compaction or in a new chat the skill reads the most recent `_state-*.md` and starts a new file for new work.
 - `delegation`: `auto` (default) delegates substantial parts as section 1 describes. `on_request` still loads the skill, but delegates only when the user asks for delegation or parallel work. A request to delegate is not approval for a gated tier.
-- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<parent-folder>-<project-folder>/routing-log.md` (or `.model-router/routing-log.md` with `checkpoints: in_repo`), so you can tune the tier table.
+- `routing_log`: when `true`, the skill appends one row per agent to `~/.model-router/logs/<project-id>/routing-log.md` (or `.model-router/routing-log.md` with `checkpoints: in_repo`), so you can tune the tier table.
 
 To change which model a tier uses, edit the `model` (and effort) values in the adapter files you installed, or the tier table in `skills/model-router/references/platforms/<platform>.md`. Then reinstall with `--force`, or edit the installed copies directly.
 
@@ -177,7 +180,7 @@ Plugin installs on Claude Code are replaced when the plugin updates, so edits to
 - The frontier tier is gated. It never runs without your approval, and untried parts drop to the tier below; parts that already failed are reported as blocked.
 - Copilot: a subagent can't use a model that costs more than its parent. No frontier preset is shipped; the frontier tier there means running the part in the main chat on a top model, after approval.
 - Gemini CLI, Cursor and Copilot set the model per agent definition, so routing means calling the right preset.
-- The orchestrator can't run `/compact` itself. On long jobs it writes progress to `_state.md` so work survives compaction.
+- The orchestrator can't run `/compact` itself. On long jobs it writes progress to a per-session `_state-*.md` file so work survives compaction.
 - Savings aren't guaranteed. Delegation has overhead (briefs, extra calls, review), so short or tightly coupled tasks can cost more when delegated, and the skill keeps those inline. If you want delegation only for large parallel tasks, set `delegation: on_request`.
 - Chat apps without subagent tools (for example the ChatGPT and Gemini apps) can't route; the skill works inline there and skips the routing line.
 - Claude Code is tested with the plugin validator, and the Claude desktop app has been used in live sessions with real Haiku, Sonnet and Opus subagents. Codex: ran in a live session. The author ran the plugin in Codex, which spawned a fast-tier subagent. Not yet fully tested end to end. The other platforms follow the vendors' documented formats but haven't been run end to end. Please report results.
