@@ -4,6 +4,9 @@
 
 First public release.
 
+- `model-router.zip` is attached to the GitHub release, so the Claude desktop app can be set up with no terminal: download, then upload it as a custom skill.
+- The README has a tier-to-model map across every platform.
+
 - One vendor-neutral `model-router` skill in the Agent Skills format. The main chat model orchestrates and sends each part of a task to the cheapest tier that will do it well.
 - Four neutral tiers: `fast`, `standard`, `strong` and `frontier`, each with a default effort level. A new Step 0 has the skill identify its harness and read the matching platform reference once per session.
 - Six platforms: Claude Code, Claude apps (desktop, web and mobile), OpenAI Codex, Gemini CLI, Cursor and GitHub Copilot. The Claude apps use general-purpose agents with `model` and `effort` on every call, and have no preset agents. Each has a platform reference file and a generic fallback, with model defaults taken from vendor docs as of November 2026.

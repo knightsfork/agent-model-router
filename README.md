@@ -17,6 +17,23 @@ The orchestrator keeps small steps for itself and delegates the rest. It writes 
 
 At the end of a task that used delegation, the skill prints a line such as `Routing: 4× fast (extraction), 2× standard (build), 1× strong (review).`
 
+## Tier-to-model map
+
+Think of the tiers as a team. **Fast** is the assistant who gathers and sorts. **Standard** is the specialist who builds to a clear spec. **Strong** is the senior lead who makes the judgment calls and reviews the work. **Frontier** is the outside expert you bring in only for the hardest problems, and only after you approve it.
+
+Here is the model each tier uses on each platform out of the box:
+
+| Tier | Claude (Code and apps) | OpenAI Codex | Gemini CLI | Cursor | GitHub Copilot |
+|---|---|---|---|---|---|
+| `fast` | Claude Haiku (effort low) | `gpt-6-luna` (low) | `gemini-2.5-flash` | `claude-haiku-5-5` | Claude Haiku 4.5, then GPT-5.4 mini |
+| `standard` | Claude Sonnet (medium) | `gpt-6.1-terra` (medium) | `gemini-3-flash-preview` | `claude-sonnet-5-5` | Claude Sonnet 5.5 |
+| `strong` | Claude Opus (high) | `gpt-6.1-sol` (high) | `gemini-3-pro-preview` | `claude-opus-5-5` | Claude Opus 5.5 |
+| `frontier` (needs your approval) | Claude Fable (high) | `gpt-6-astra` (high) | `gemini-3-pro-preview` (Gemini CLI has no separate top model) | `claude-fable-5-2` | No subagent preset; switch the main chat to a top model after approval |
+
+- These defaults come from each vendor's documentation as of November 2026. Model names change often, so check the list for your own plan.
+- Cursor can run models from several vendors. To use GPT or Gemini models there, change `model` in `adapters/cursor/agents/` to any slug from Cursor's model list.
+- To change any mapping, edit the agent files in `adapters/<platform>/agents/` and the table in `skills/model-router/references/platforms/<platform>.md`.
+
 ## Supported platforms
 
 | Platform | Skill | Preset agents | How the model is chosen | Status |
@@ -29,6 +46,16 @@ At the end of a task that used delegation, the skill prints a line such as `Rout
 | GitHub Copilot | Yes | Yes (no frontier preset) | Set in each agent's frontmatter; a subagent can't cost more than the parent | Documented format, not yet tested end to end |
 
 ## Quick install
+
+### Claude desktop app (also web and mobile)
+
+No terminal needed:
+
+1. Download `model-router.zip` from the [latest release](https://github.com/knightsfork/agent-model-router/releases/latest).
+2. In Claude, open your skill settings and upload the zip as a custom skill.
+3. Make sure the skill is turned on, then start a new chat. It applies on its own; you never need to call it.
+
+Routing needs a Claude session that can run subagents, which depends on your plan and app features. Without subagents the skill still works, doing everything in the main chat.
 
 ### Claude Code plugin
 
@@ -67,13 +94,13 @@ cd agent-model-router
 
 The installer never overwrites an existing file that differs from this version. It skips identical files silently and keeps the others, then tells you how many differ. Add `--force` to overwrite; each replaced file is first saved as `<file>.bak.<YYYYmmddHHMMSS>`, and an existing backup is never overwritten. Add `--dry-run` to see what would happen without changing anything. It works from any directory.
 
-### Claude apps (desktop, web, mobile)
+### Build the Claude app zip yourself
 
 ```
 ./install.sh claude-app
 ```
 
-This builds `dist/model-router.zip` and writes nothing else. Upload it as a custom skill in Claude's skill settings. The alias `claude-desktop` also works, and `all` doesn't include it. To do it by hand, zip the `skills/model-router` folder so that `model-router/SKILL.md` is inside the zip, then upload that. Subagents depend on your plan and app features; without them the skill works inline.
+This builds `dist/model-router.zip` (the same file as the release download) and writes nothing else. The alias `claude-desktop` also works, and `all` doesn't include it. To do it by hand, zip the `skills/model-router` folder so that `model-router/SKILL.md` is inside the zip.
 
 ### Manual install
 
