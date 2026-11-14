@@ -3,6 +3,8 @@ name: Release
 on:
   push:
     tags: ['v*']
+  release:
+    types: [published]
 
 permissions:
   contents: write
@@ -25,7 +27,12 @@ jobs:
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name || github.ref_name }}
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/model-router.zip \
-            --title "$GITHUB_REF_NAME" \
-            --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/model-router.zip --clobber
+          else
+            gh release create "$TAG" dist/model-router.zip \
+              --title "$TAG" \
+              --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
+          fi
