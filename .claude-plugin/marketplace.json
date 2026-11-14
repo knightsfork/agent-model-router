@@ -1,0 +1,14 @@
+{
+  "name": "model-router",
+  "description": "The model-router skill and its preset agents",
+  "owner": {
+    "name": "Hatem Mohamed"
+  },
+  "plugins": [
+    {
+      "name": "model-router",
+      "source": "./",
+      "description": "Routes subagent work to the cheapest Claude model that will do each part well, with an approval gate on the top tier."
+    }
+  ]
+}
