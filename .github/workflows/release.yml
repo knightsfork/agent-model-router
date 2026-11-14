@@ -1,0 +1,31 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 scripts/validate.py
+          bash tests/test_install.sh
+
+      - name: Build the Claude app zip
+        run: ./install.sh claude-app
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/model-router.zip \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Download model-router.zip below and upload it as a custom skill in the Claude desktop app (also web and mobile). For Claude Code, Codex, Gemini CLI, Cursor and Copilot, see the README's Quick install. Details are in CHANGELOG.md."
